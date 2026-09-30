@@ -1,0 +1,49 @@
+classDiagram
+    class Categoria {
+        int id
+        String nome
+    }
+    class Item {
+        int id
+        String nome
+        String descricao
+        double preco
+        int categoriaId
+        String categoriaNome
+    }
+    class Arma {
+        int id
+        int itemId
+        String itemNome
+        int dano
+        int capacidade
+        int velocidadeRecarga
+        int poderTiro
+    }
+    class Upgrade {
+        int id
+        int armaId
+        String tipo
+        int nivel
+        double custo
+    }
+    class Cliente {
+        int id
+        String nome
+        double dinheiro
+    }
+    class Transacao {
+        int id
+        int clienteId
+        Integer itemId
+        String tipo
+        int quantidade
+        double valorTotal
+        String data
+    }
+
+    Categoria "1" --> "0..*" Item : classifica
+    Item "1" --> "0..1" Arma : especializada como
+    Arma "1" --> "0..*" Upgrade : recebe
+    Cliente "1" --> "0..*" Transacao : realiza
+    Item "0..1" --> "0..*" Transacao : referenciada em

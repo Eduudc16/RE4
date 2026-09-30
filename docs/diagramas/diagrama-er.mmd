@@ -1,0 +1,47 @@
+erDiagram
+    CATEGORIA {
+        integer id PK
+        text nome
+    }
+    CLIENTE {
+        integer id PK
+        text nome
+        real dinheiro
+    }
+    ITEM {
+        integer id PK
+        text nome
+        text descricao
+        real preco
+        integer categoria_id FK
+    }
+    ARMA {
+        integer id PK
+        integer item_id FK
+        integer dano
+        integer capacidade
+        integer velocidade_recarga
+        integer poder_tiro
+    }
+    UPGRADE {
+        integer id PK
+        integer arma_id FK
+        text tipo
+        integer nivel
+        real custo
+    }
+    TRANSACAO {
+        integer id PK
+        integer cliente_id FK
+        integer item_id FK
+        text tipo
+        integer quantidade
+        real valor_total
+        text data
+    }
+
+    CATEGORIA ||--o{ ITEM : classifica
+    ITEM ||--o| ARMA : "pode ser"
+    ARMA ||--o{ UPGRADE : recebe
+    CLIENTE ||--o{ TRANSACAO : realiza
+    ITEM ||--o{ TRANSACAO : "aparece em"
