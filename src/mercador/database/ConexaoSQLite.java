@@ -23,12 +23,61 @@ public class ConexaoSQLite {
     public static void inicializarBanco() {
         try (Connection conn = getConnection(); Statement stmt = conn.createStatement()) {
             criarTabelas(stmt);
-            if (bancoVazio(stmt)) {
+            boolean bancoNovo = bancoVazio(stmt);
+            if (bancoNovo) {
                 inserirDadosIniciais(stmt);
+            } else {
+                // Banco já existia antes da coluna `aplicado` ser criada (Card 10).
+                // Um banco novo já nasce com ela, via criarTabelas() — só bancos
+                // pré-existentes precisam dessa migração condicional.
+                adicionarColunaAplicadoSeNecessario(stmt);
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
+    }
+
+    private static void adicionarColunaAplicadoSeNecessario(Statement stmt) throws SQLException {
+        boolean existe = false;
+        try (ResultSet rs = stmt.executeQuery("PRAGMA table_info(upgrade)")) {
+            while (rs.next()) {
+                if ("aplicado".equalsIgnoreCase(rs.getString("name"))) {
+                    existe = true;
+                    break;
+                }
+            }
+        }
+
+        if (!existe) {
+            stmt.execute("ALTER TABLE upgrade ADD COLUMN aplicado INTEGER NOT NULL DEFAULT 0");
+        }
+    }
+
+    /**
+     * Executa uma operação com commit/rollback automático: se `operacao`
+     * lançar SQLException, a transação é desfeita e a exceção é repassada
+     * para o chamador decidir a mensagem de erro; caso contrário, é
+     * commitada e o resultado é devolvido. Usada pelos controllers que
+     * precisam mexer em várias tabelas de forma atômica (compra, venda,
+     * upgrade).
+     */
+    public static <T> T executarEmTransacao(OperacaoTransacional<T> operacao) throws SQLException {
+        try (Connection conn = getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                T resultado = operacao.executar(conn);
+                conn.commit();
+                return resultado;
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
+    }
+
+    @FunctionalInterface
+    public interface OperacaoTransacional<T> {
+        T executar(Connection conn) throws SQLException;
     }
 
     private static void criarTabelas(Statement stmt) throws SQLException {
@@ -77,6 +126,7 @@ public class ConexaoSQLite {
                 tipo TEXT NOT NULL,
                 nivel INTEGER NOT NULL,
                 custo REAL NOT NULL,
+                aplicado INTEGER NOT NULL DEFAULT 0,
                 FOREIGN KEY (arma_id) REFERENCES arma(id)
             )
         """);
@@ -92,6 +142,18 @@ public class ConexaoSQLite {
                 data TEXT NOT NULL,
                 FOREIGN KEY (cliente_id) REFERENCES cliente(id),
                 FOREIGN KEY (item_id) REFERENCES item(id)
+            )
+        """);
+
+        stmt.execute("""
+            CREATE TABLE IF NOT EXISTS inventario_cliente (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cliente_id INTEGER NOT NULL,
+                item_id INTEGER NOT NULL,
+                quantidade INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (cliente_id) REFERENCES cliente(id),
+                FOREIGN KEY (item_id) REFERENCES item(id),
+                UNIQUE (cliente_id, item_id)
             )
         """);
     }

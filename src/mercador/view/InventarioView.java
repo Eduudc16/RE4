@@ -2,64 +2,42 @@ package mercador.view;
 
 import java.awt.BorderLayout;
 import java.awt.Color;
-import java.awt.Font;
+import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.RenderingHints;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.SwingConstants;
 
-import mercador.database.ItemDAO;
+import mercador.controller.ComprarItensController;
+import mercador.database.InventarioClienteDAO;
 import mercador.model.Item;
+import mercador.model.ItemInventario;
 
 /**
  * Tela de inventário no estilo "maleta" do RE4: cada item ocupa um bloco
  * de tamanho diferente na grade, preenchido automaticamente (sem
- * drag-and-drop). Como ainda não existe uma tabela de inventário do
- * cliente, esta tela exibe o catálogo completo apenas como prévia visual.
+ * drag-and-drop). Mostra apenas os itens que o cliente realmente possui,
+ * com a quantidade de cada um.
  */
 public class InventarioView extends JFrame {
 
     public InventarioView() {
-        setTitle("Maleta - Inventário");
+        setTitle("Inventário (Maleta)");
+        setSize(600, 500);
         setDefaultCloseOperation(JFrame.DISPOSE_ON_CLOSE);
-        setLayout(new BorderLayout());
-
-        List<Item> itens = new ItemDAO().listarTodos();
-
-        add(criarCabecalho(itens.size()), BorderLayout.NORTH);
-        add(new JScrollPane(new MaletaPanel(itens)), BorderLayout.CENTER);
-
-        setSize(620, 650);
         setLocationRelativeTo(null);
-    }
+        setLayout(new BorderLayout(10, 10));
 
-    private JPanel criarCabecalho(int totalItens) {
-        JPanel painel = new JPanel();
-        painel.setLayout(new BorderLayout());
-        painel.setBackground(new Color(40, 30, 20));
+        List<ItemInventario> itens = new InventarioClienteDAO().listarPorCliente(ComprarItensController.CLIENTE_ATUAL_ID);
 
-        JLabel titulo = new JLabel("Maleta do Mercador", SwingConstants.CENTER);
-        titulo.setFont(new Font("SansSerif", Font.BOLD, 20));
-        titulo.setForeground(new Color(230, 210, 170));
-        titulo.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 10, 4, 10));
-
-        JLabel aviso = new JLabel(
-                "Prévia visual com " + totalItens + " itens do catálogo — inventário real do cliente ainda será implementado",
-                SwingConstants.CENTER);
-        aviso.setFont(new Font("SansSerif", Font.ITALIC, 11));
-        aviso.setForeground(new Color(180, 165, 140));
-        aviso.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 10, 10, 10));
-
-        painel.add(titulo, BorderLayout.NORTH);
-        painel.add(aviso, BorderLayout.SOUTH);
-        return painel;
+        add(new JScrollPane(new MaletaPanel(itens)), BorderLayout.CENTER);
     }
 
     /** Grade estilo maleta: cada item ocupa um bloco de LxA células, encaixado por um algoritmo simples de preenchimento. */
@@ -68,27 +46,26 @@ public class InventarioView extends JFrame {
         private static final int COLUNAS = 8;
         private static final int LINHAS = 8;
         private static final int CELULA = 60;
-        private static final int MARGEM = 16;
+        private static final int MARGEM = 10;
         private static final int GAP = 4;
 
-        MaletaPanel(List<Item> itens) {
+        MaletaPanel(List<ItemInventario> itens) {
             setLayout(null);
-            setBackground(new Color(92, 62, 38));
             int largura = MARGEM * 2 + COLUNAS * CELULA;
             int altura = MARGEM * 2 + LINHAS * CELULA;
-            setPreferredSize(new java.awt.Dimension(largura, altura));
+            setPreferredSize(new Dimension(largura, altura));
 
             posicionarItens(itens);
         }
 
-        private void posicionarItens(List<Item> itens) {
+        private void posicionarItens(List<ItemInventario> itens) {
             boolean[][] ocupado = new boolean[LINHAS][COLUNAS];
 
-            List<Item> ordenados = new ArrayList<>(itens);
-            ordenados.sort((a, b) -> areaDoItem(b) - areaDoItem(a));
+            List<ItemInventario> ordenados = new ArrayList<>(itens);
+            ordenados.sort((a, b) -> areaDoItem(b.getItem()) - areaDoItem(a.getItem()));
 
-            for (Item item : ordenados) {
-                int[] tamanho = tamanhoDoItem(item);
+            for (ItemInventario itemInv : ordenados) {
+                int[] tamanho = tamanhoDoItem(itemInv.getItem());
                 int larguraCel = tamanho[0];
                 int alturaCel = tamanho[1];
 
@@ -98,7 +75,7 @@ public class InventarioView extends JFrame {
                 }
 
                 marcarOcupado(ocupado, posicao[0], posicao[1], larguraCel, alturaCel);
-                add(criarBloco(item, posicao[0], posicao[1], larguraCel, alturaCel));
+                add(criarBloco(itemInv, posicao[0], posicao[1], larguraCel, alturaCel));
             }
         }
 
@@ -132,8 +109,8 @@ public class InventarioView extends JFrame {
             }
         }
 
-        private BlocoItem criarBloco(Item item, int linha, int coluna, int largura, int altura) {
-            BlocoItem bloco = new BlocoItem(item);
+        private BlocoItem criarBloco(ItemInventario itemInv, int linha, int coluna, int largura, int altura) {
+            BlocoItem bloco = new BlocoItem(itemInv);
             int x = MARGEM + coluna * CELULA + GAP / 2;
             int y = MARGEM + linha * CELULA + GAP / 2;
             int w = largura * CELULA - GAP;
@@ -181,9 +158,8 @@ public class InventarioView extends JFrame {
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             Graphics2D g2 = (Graphics2D) g;
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            g2.setColor(new Color(76, 50, 30));
+            g2.setColor(Color.LIGHT_GRAY);
             for (int l = 0; l <= LINHAS; l++) {
                 int y = MARGEM + l * CELULA;
                 g2.drawLine(MARGEM, y, MARGEM + COLUNAS * CELULA, y);
@@ -195,47 +171,17 @@ public class InventarioView extends JFrame {
         }
     }
 
-    /** Bloco visual de um item dentro da maleta, com cor por categoria. */
+    /** Bloco visual de um item dentro da maleta, no mesmo estilo simples das outras telas. Mostra a quantidade. */
     private static class BlocoItem extends JPanel {
 
-        private final Color cor;
-
-        BlocoItem(Item item) {
-            setOpaque(false);
+        BlocoItem(ItemInventario itemInv) {
             setLayout(new BorderLayout());
-            this.cor = corPorCategoria(item.getCategoriaNome());
+            setBorder(BorderFactory.createLineBorder(Color.GRAY));
 
-            JLabel label = new JLabel("<html><div style='text-align:center;'>" + item.getNome() + "</div></html>", SwingConstants.CENTER);
-            label.setFont(new Font("SansSerif", Font.BOLD, 11));
-            label.setForeground(Color.WHITE);
+            String texto = itemInv.getItem().getNome() + " (x" + itemInv.getQuantidade() + ")";
+            JLabel label = new JLabel("<html><div style='text-align:center;'>" + texto + "</div></html>", SwingConstants.CENTER);
             label.setHorizontalAlignment(SwingConstants.CENTER);
             add(label, BorderLayout.CENTER);
-        }
-
-        private Color corPorCategoria(String categoria) {
-            if (categoria == null) {
-                return new Color(110, 110, 110);
-            }
-            switch (categoria) {
-                case "Arma": return new Color(70, 70, 75);
-                case "Munição": return new Color(160, 130, 40);
-                case "Cura": return new Color(50, 130, 60);
-                case "Tesouro": return new Color(180, 150, 40);
-                case "Colete": return new Color(60, 80, 120);
-                default: return new Color(110, 110, 110);
-            }
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(cor);
-            g2.fillRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
-            g2.setColor(cor.darker());
-            g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 10, 10);
-            g2.dispose();
-            super.paintComponent(g);
         }
     }
 }

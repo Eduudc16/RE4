@@ -13,15 +13,17 @@ import javax.swing.JTable;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
+import mercador.controller.ComprarItensController;
 import mercador.controller.VenderItensController;
-import mercador.database.ItemDAO;
-import mercador.model.Item;
+import mercador.database.InventarioClienteDAO;
+import mercador.model.ItemInventario;
 
 public class VenderItensView extends JFrame {
 
     private final VenderItensController controller = new VenderItensController();
-    private final ItemDAO itemDAO = new ItemDAO();
+    private final InventarioClienteDAO inventarioDAO = new InventarioClienteDAO();
     private JTable tabelaItens;
+    private DefaultTableModel modeloTabela;
     private JSpinner spinnerQuantidade;
 
     public VenderItensView() {
@@ -36,17 +38,26 @@ public class VenderItensView extends JFrame {
     }
 
     private JScrollPane criarTabela() {
-        String[] colunas = {"ID", "Nome", "Categoria", "Preço"};
-        DefaultTableModel modelo = new DefaultTableModel(colunas, 0);
+        String[] colunas = {"ID", "Nome", "Categoria", "Preço", "Quantidade"};
+        modeloTabela = new DefaultTableModel(colunas, 0);
+        atualizarTabela();
 
-        // TODO: substituir pela listagem do inventário do Cliente quando o CRUD estiver pronto
-        List<Item> itens = itemDAO.listarTodos();
-        for (Item item : itens) {
-            modelo.addRow(new Object[]{item.getId(), item.getNome(), item.getCategoriaNome(), item.getPreco()});
-        }
-
-        tabelaItens = new JTable(modelo);
+        tabelaItens = new JTable(modeloTabela);
         return new JScrollPane(tabelaItens);
+    }
+
+    private void atualizarTabela() {
+        modeloTabela.setRowCount(0);
+        List<ItemInventario> itens = inventarioDAO.listarPorCliente(ComprarItensController.CLIENTE_ATUAL_ID);
+        for (ItemInventario itemInv : itens) {
+            modeloTabela.addRow(new Object[]{
+                    itemInv.getItem().getId(),
+                    itemInv.getItem().getNome(),
+                    itemInv.getItem().getCategoriaNome(),
+                    itemInv.getItem().getPreco(),
+                    itemInv.getQuantidade()
+            });
+        }
     }
 
     private JPanel criarPainelInferior() {

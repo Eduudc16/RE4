@@ -14,6 +14,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
 import mercador.controller.ComprarItensController;
+import mercador.controller.ResultadoOperacao;
 import mercador.database.ItemDAO;
 import mercador.model.Item;
 
@@ -22,6 +23,7 @@ public class ComprarItensView extends JFrame {
     private final ComprarItensController controller = new ComprarItensController();
     private final ItemDAO itemDAO = new ItemDAO();
     private JTable tabelaItens;
+    private DefaultTableModel modeloTabela;
     private JSpinner spinnerQuantidade;
 
     public ComprarItensView() {
@@ -37,15 +39,19 @@ public class ComprarItensView extends JFrame {
 
     private JScrollPane criarTabela() {
         String[] colunas = {"ID", "Nome", "Categoria", "Preço"};
-        DefaultTableModel modelo = new DefaultTableModel(colunas, 0);
+        modeloTabela = new DefaultTableModel(colunas, 0);
+        atualizarTabela();
 
+        tabelaItens = new JTable(modeloTabela);
+        return new JScrollPane(tabelaItens);
+    }
+
+    private void atualizarTabela() {
+        modeloTabela.setRowCount(0);
         List<Item> itens = itemDAO.listarTodos();
         for (Item item : itens) {
-            modelo.addRow(new Object[]{item.getId(), item.getNome(), item.getCategoriaNome(), item.getPreco()});
+            modeloTabela.addRow(new Object[]{item.getId(), item.getNome(), item.getCategoriaNome(), item.getPreco()});
         }
-
-        tabelaItens = new JTable(modelo);
-        return new JScrollPane(tabelaItens);
     }
 
     private JPanel criarPainelInferior() {
@@ -62,7 +68,10 @@ public class ComprarItensView extends JFrame {
             }
             int itemId = (int) tabelaItens.getValueAt(linha, 0);
             int quantidade = (int) spinnerQuantidade.getValue();
-            controller.comprarItem(itemId, quantidade);
+            ResultadoOperacao resultado = controller.comprarItem(itemId, quantidade);
+            if (resultado.isSucesso()) {
+                atualizarTabela();
+            }
             JOptionPane.showMessageDialog(this, "Funcionalidade de compra ainda será implementada.");
         });
 

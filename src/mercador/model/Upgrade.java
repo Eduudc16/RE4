@@ -6,6 +6,7 @@ public class Upgrade {
     private String tipo;
     private int nivel;
     private double custo;
+    private boolean aplicado;
 
     public Upgrade() {}
 
@@ -31,4 +32,7 @@ public class Upgrade {
 
     public double getCusto() { return custo; }
     public void setCusto(double custo) { this.custo = custo; }
+
+    public boolean isAplicado() { return aplicado; }
+    public void setAplicado(boolean aplicado) { this.aplicado = aplicado; }
 }
