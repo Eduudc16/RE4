@@ -22,6 +22,7 @@ public class ComprarItensView extends JFrame {
 
     private final ComprarItensController controller = new ComprarItensController();
     private final ItemDAO itemDAO = new ItemDAO();
+    private final SaldoLabel labelSaldo = new SaldoLabel();
     private JTable tabelaItens;
     private DefaultTableModel modeloTabela;
     private JSpinner spinnerQuantidade;
@@ -33,6 +34,7 @@ public class ComprarItensView extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
+        add(labelSaldo, BorderLayout.NORTH);
         add(criarTabela(), BorderLayout.CENTER);
         add(criarPainelInferior(), BorderLayout.SOUTH);
     }
@@ -71,8 +73,10 @@ public class ComprarItensView extends JFrame {
             ResultadoOperacao resultado = controller.comprarItem(itemId, quantidade);
             if (resultado.isSucesso()) {
                 atualizarTabela();
+                labelSaldo.atualizar();
             }
-            JOptionPane.showMessageDialog(this, "Funcionalidade de compra ainda será implementada.");
+            int tipoMensagem = resultado.isSucesso() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            JOptionPane.showMessageDialog(this, resultado.getMensagem(), getTitle(), tipoMensagem);
         });
 
         painel.add(spinnerQuantidade);

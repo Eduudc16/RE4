@@ -4,10 +4,39 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import mercador.model.Upgrade;
 
 public class UpgradeDAO {
+
+    /** Upgrades da arma que ainda não foram aplicados, para a tela Aprimorar oferecer ao usuário. */
+    public List<Upgrade> listarDisponiveisPorArma(int armaId) {
+        List<Upgrade> upgrades = new ArrayList<>();
+        String sql = "SELECT id, arma_id, tipo, nivel, custo FROM upgrade WHERE arma_id = ? AND aplicado = 0 ORDER BY id";
+
+        try (Connection conn = ConexaoSQLite.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, armaId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    upgrades.add(new Upgrade(
+                            rs.getInt("id"),
+                            rs.getInt("arma_id"),
+                            rs.getString("tipo"),
+                            rs.getInt("nivel"),
+                            rs.getDouble("custo")
+                    ));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return upgrades;
+    }
 
     public Upgrade buscarPorId(int id) {
         String sql = "SELECT id, arma_id, tipo, nivel, custo, aplicado FROM upgrade WHERE id = ?";
