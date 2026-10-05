@@ -14,6 +14,7 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
 import mercador.controller.ComprarItensController;
+import mercador.controller.ResultadoOperacao;
 import mercador.controller.VenderItensController;
 import mercador.database.InventarioClienteDAO;
 import mercador.model.ItemInventario;
@@ -22,6 +23,7 @@ public class VenderItensView extends JFrame {
 
     private final VenderItensController controller = new VenderItensController();
     private final InventarioClienteDAO inventarioDAO = new InventarioClienteDAO();
+    private final SaldoLabel labelSaldo = new SaldoLabel();
     private JTable tabelaItens;
     private DefaultTableModel modeloTabela;
     private JSpinner spinnerQuantidade;
@@ -33,6 +35,7 @@ public class VenderItensView extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
+        add(labelSaldo, BorderLayout.NORTH);
         add(criarTabela(), BorderLayout.CENTER);
         add(criarPainelInferior(), BorderLayout.SOUTH);
     }
@@ -74,8 +77,13 @@ public class VenderItensView extends JFrame {
             }
             int itemId = (int) tabelaItens.getValueAt(linha, 0);
             int quantidade = (int) spinnerQuantidade.getValue();
-            controller.venderItem(itemId, quantidade);
-            JOptionPane.showMessageDialog(this, "Funcionalidade de venda ainda será implementada.");
+            ResultadoOperacao resultado = controller.venderItem(itemId, quantidade);
+            if (resultado.isSucesso()) {
+                atualizarTabela();
+                labelSaldo.atualizar();
+            }
+            int tipoMensagem = resultado.isSucesso() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE;
+            JOptionPane.showMessageDialog(this, resultado.getMensagem(), getTitle(), tipoMensagem);
         });
 
         painel.add(spinnerQuantidade);
