@@ -29,6 +29,7 @@ erDiagram
         text tipo
         integer nivel
         real custo
+        integer aplicado
     }
     TRANSACAO {
         integer id PK
@@ -39,9 +40,17 @@ erDiagram
         real valor_total
         text data
     }
+    INVENTARIO_CLIENTE {
+        integer id PK
+        integer cliente_id FK
+        integer item_id FK
+        integer quantidade
+    }
 
     CATEGORIA ||--o{ ITEM : classifica
     ITEM ||--o| ARMA : "pode ser"
     ARMA ||--o{ UPGRADE : recebe
     CLIENTE ||--o{ TRANSACAO : realiza
     ITEM ||--o{ TRANSACAO : "aparece em"
+    CLIENTE ||--o{ INVENTARIO_CLIENTE : possui
+    ITEM ||--o{ INVENTARIO_CLIENTE : "esta em"
