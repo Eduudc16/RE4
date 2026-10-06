@@ -64,13 +64,15 @@ public class AprimorarItensController {
         Transacao transacao = new Transacao(0, clienteId, arma.getItemId(), "upgrade", 1, upgrade.getCusto(), LocalDate.now().toString());
 
         try {
-            return ConexaoSQLite.executarEmTransacao(conn -> {
+            ResultadoOperacao resultado = ConexaoSQLite.executarEmTransacao(conn -> {
                 clienteDAO.atualizarSaldo(conn, clienteId, cliente.getDinheiro() - upgrade.getCusto());
                 armaDAO.atualizar(conn, arma);
                 upgradeDAO.marcarComoAplicado(conn, upgradeId);
                 transacaoDAO.inserir(conn, transacao);
                 return ResultadoOperacao.sucesso("Upgrade aplicado com sucesso.");
             });
+            NotificadorDados.notificar();
+            return resultado;
         } catch (SQLException e) {
             e.printStackTrace();
             return ResultadoOperacao.erro("Erro ao aplicar o upgrade. Nenhuma alteração foi salva.");

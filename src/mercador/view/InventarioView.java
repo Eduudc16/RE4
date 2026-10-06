@@ -5,7 +5,6 @@ import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -19,14 +18,20 @@ import mercador.controller.ComprarItensController;
 import mercador.database.InventarioClienteDAO;
 import mercador.model.Item;
 import mercador.model.ItemInventario;
+import mercador.model.Maleta;
 
 /**
- * Tela de inventário no estilo "maleta" do RE4: cada item ocupa um bloco
- * de tamanho diferente na grade, preenchido automaticamente (sem
- * drag-and-drop). Mostra apenas os itens que o cliente realmente possui,
- * com a quantidade de cada um.
+ * Tela de inventário no estilo "maleta" do RE4: cada unidade de item ocupa um
+ * bloco de tamanho diferente na grade, preenchido automaticamente (sem
+ * drag-and-drop) — quanto mais unidades de um consumível, mais espaço ele usa.
+ * Mostra apenas os itens que o cliente realmente possui e se atualiza sozinha
+ * quando uma compra ou venda é feita em outra janela.
  */
 public class InventarioView extends JFrame {
+
+    private final InventarioClienteDAO inventarioDAO = new InventarioClienteDAO();
+    private final MaletaPanel maleta = new MaletaPanel();
+    private final JLabel avisoMaletaCheia = new JLabel("", SwingConstants.CENTER);
 
     public InventarioView() {
         setTitle("Inventário (Maleta)");
@@ -35,123 +40,58 @@ public class InventarioView extends JFrame {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(10, 10));
 
-        List<ItemInventario> itens = new InventarioClienteDAO().listarPorCliente(ComprarItensController.CLIENTE_ATUAL_ID);
+        avisoMaletaCheia.setForeground(Color.RED);
+        add(new JScrollPane(maleta), BorderLayout.CENTER);
+        add(avisoMaletaCheia, BorderLayout.SOUTH);
 
-        add(new JScrollPane(new MaletaPanel(itens)), BorderLayout.CENTER);
+        recarregar();
+        AtualizacaoAutomatica.ligar(this, this::recarregar);
     }
 
-    /** Grade estilo maleta: cada item ocupa um bloco de LxA células, encaixado por um algoritmo simples de preenchimento. */
+    private void recarregar() {
+        List<ItemInventario> itens = inventarioDAO.listarPorCliente(ComprarItensController.CLIENTE_ATUAL_ID);
+        Maleta.Disposicao disposicao = Maleta.organizar(itens);
+        maleta.exibir(disposicao);
+
+        int naoCouberam = disposicao.getNaoCouberam();
+        avisoMaletaCheia.setVisible(naoCouberam > 0);
+        avisoMaletaCheia.setText("Maleta cheia: " + naoCouberam
+                + " unidade(s) não couberam e não aparecem. Venda itens para liberar espaço.");
+        getContentPane().revalidate();
+        getContentPane().repaint();
+    }
+
+    /** Desenha a grade da maleta e os blocos que a classe Maleta já posicionou. */
     private static class MaletaPanel extends JPanel {
 
-        private static final int COLUNAS = 8;
-        private static final int LINHAS = 8;
         private static final int CELULA = 60;
         private static final int MARGEM = 10;
         private static final int GAP = 4;
 
-        MaletaPanel(List<ItemInventario> itens) {
+        MaletaPanel() {
             setLayout(null);
-            int largura = MARGEM * 2 + COLUNAS * CELULA;
-            int altura = MARGEM * 2 + LINHAS * CELULA;
+            int largura = MARGEM * 2 + Maleta.COLUNAS * CELULA;
+            int altura = MARGEM * 2 + Maleta.LINHAS * CELULA;
             setPreferredSize(new Dimension(largura, altura));
-
-            posicionarItens(itens);
         }
 
-        private void posicionarItens(List<ItemInventario> itens) {
-            boolean[][] ocupado = new boolean[LINHAS][COLUNAS];
-
-            List<ItemInventario> ordenados = new ArrayList<>(itens);
-            ordenados.sort((a, b) -> areaDoItem(b.getItem()) - areaDoItem(a.getItem()));
-
-            for (ItemInventario itemInv : ordenados) {
-                int[] tamanho = tamanhoDoItem(itemInv.getItem());
-                int larguraCel = tamanho[0];
-                int alturaCel = tamanho[1];
-
-                int[] posicao = encontrarEspaco(ocupado, larguraCel, alturaCel);
-                if (posicao == null) {
-                    continue;
-                }
-
-                marcarOcupado(ocupado, posicao[0], posicao[1], larguraCel, alturaCel);
-                add(criarBloco(itemInv, posicao[0], posicao[1], larguraCel, alturaCel));
+        void exibir(Maleta.Disposicao disposicao) {
+            removeAll();
+            for (Maleta.Bloco bloco : disposicao.getBlocos()) {
+                add(criarBloco(bloco));
             }
+            revalidate();
+            repaint();
         }
 
-        private int[] encontrarEspaco(boolean[][] ocupado, int largura, int altura) {
-            for (int linha = 0; linha <= LINHAS - altura; linha++) {
-                for (int coluna = 0; coluna <= COLUNAS - largura; coluna++) {
-                    if (cabeAqui(ocupado, linha, coluna, largura, altura)) {
-                        return new int[]{linha, coluna};
-                    }
-                }
-            }
-            return null;
-        }
-
-        private boolean cabeAqui(boolean[][] ocupado, int linha, int coluna, int largura, int altura) {
-            for (int l = linha; l < linha + altura; l++) {
-                for (int c = coluna; c < coluna + largura; c++) {
-                    if (ocupado[l][c]) {
-                        return false;
-                    }
-                }
-            }
-            return true;
-        }
-
-        private void marcarOcupado(boolean[][] ocupado, int linha, int coluna, int largura, int altura) {
-            for (int l = linha; l < linha + altura; l++) {
-                for (int c = coluna; c < coluna + largura; c++) {
-                    ocupado[l][c] = true;
-                }
-            }
-        }
-
-        private BlocoItem criarBloco(ItemInventario itemInv, int linha, int coluna, int largura, int altura) {
-            BlocoItem bloco = new BlocoItem(itemInv);
-            int x = MARGEM + coluna * CELULA + GAP / 2;
-            int y = MARGEM + linha * CELULA + GAP / 2;
-            int w = largura * CELULA - GAP;
-            int h = altura * CELULA - GAP;
-            bloco.setBounds(x, y, w, h);
-            return bloco;
-        }
-
-        private int areaDoItem(Item item) {
-            int[] tamanho = tamanhoDoItem(item);
-            return tamanho[0] * tamanho[1];
-        }
-
-        /** Tamanho (colunas x linhas) de cada item na maleta, como no jogo: armas maiores, munição/cura pequenas. */
-        private int[] tamanhoDoItem(Item item) {
-            switch (item.getNome()) {
-                case "Punisher": return new int[]{2, 2};
-                case "Riot Gun": return new int[]{3, 2};
-                case "Red9": return new int[]{2, 2};
-                case "Rifle Semi-Automático": return new int[]{1, 4};
-                case "Munição de Pistola": return new int[]{1, 1};
-                case "Munição de Espingarda": return new int[]{1, 2};
-                case "Erva Verde": return new int[]{1, 1};
-                case "Spray de Primeiros Socorros": return new int[]{1, 2};
-                case "Rubi Lapidado": return new int[]{1, 1};
-                case "Olho Elegante": return new int[]{2, 2};
-                case "Colete à Prova de Balas": return new int[]{2, 3};
-                default: return tamanhoPorCategoria(item.getCategoriaNome());
-            }
-        }
-
-        private int[] tamanhoPorCategoria(String categoria) {
-            if (categoria == null) {
-                return new int[]{1, 1};
-            }
-            switch (categoria) {
-                case "Arma": return new int[]{2, 2};
-                case "Colete": return new int[]{2, 2};
-                case "Tesouro": return new int[]{1, 1};
-                default: return new int[]{1, 1};
-            }
+        private BlocoItem criarBloco(Maleta.Bloco bloco) {
+            BlocoItem painel = new BlocoItem(bloco.getItem());
+            int x = MARGEM + bloco.getColuna() * CELULA + GAP / 2;
+            int y = MARGEM + bloco.getLinha() * CELULA + GAP / 2;
+            int w = bloco.getLargura() * CELULA - GAP;
+            int h = bloco.getAltura() * CELULA - GAP;
+            painel.setBounds(x, y, w, h);
+            return painel;
         }
 
         @Override
@@ -160,26 +100,27 @@ public class InventarioView extends JFrame {
             Graphics2D g2 = (Graphics2D) g;
 
             g2.setColor(Color.LIGHT_GRAY);
-            for (int l = 0; l <= LINHAS; l++) {
+            for (int l = 0; l <= Maleta.LINHAS; l++) {
                 int y = MARGEM + l * CELULA;
-                g2.drawLine(MARGEM, y, MARGEM + COLUNAS * CELULA, y);
+                g2.drawLine(MARGEM, y, MARGEM + Maleta.COLUNAS * CELULA, y);
             }
-            for (int c = 0; c <= COLUNAS; c++) {
+            for (int c = 0; c <= Maleta.COLUNAS; c++) {
                 int x = MARGEM + c * CELULA;
-                g2.drawLine(x, MARGEM, x, MARGEM + LINHAS * CELULA);
+                g2.drawLine(x, MARGEM, x, MARGEM + Maleta.LINHAS * CELULA);
             }
         }
     }
 
-    /** Bloco visual de um item dentro da maleta, no mesmo estilo simples das outras telas. Mostra a quantidade. */
+    /** Bloco visual de uma unidade de item dentro da maleta, no mesmo estilo simples das outras telas. */
     private static class BlocoItem extends JPanel {
 
-        BlocoItem(ItemInventario itemInv) {
+        BlocoItem(Item item) {
             setLayout(new BorderLayout());
             setBorder(BorderFactory.createLineBorder(Color.GRAY));
+            // Nos blocos pequenos o nome não cabe inteiro; o tooltip mostra o nome completo.
+            setToolTipText(item.getNome());
 
-            String texto = itemInv.getItem().getNome() + " (x" + itemInv.getQuantidade() + ")";
-            JLabel label = new JLabel("<html><div style='text-align:center;'>" + texto + "</div></html>", SwingConstants.CENTER);
+            JLabel label = new JLabel("<html><div style='text-align:center;'>" + item.getNome() + "</div></html>", SwingConstants.CENTER);
             label.setHorizontalAlignment(SwingConstants.CENTER);
             add(label, BorderLayout.CENTER);
         }

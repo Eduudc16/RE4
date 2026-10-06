@@ -10,6 +10,7 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSpinner;
 import javax.swing.JTable;
+import javax.swing.ListSelectionModel;
 import javax.swing.SpinnerNumberModel;
 import javax.swing.table.DefaultTableModel;
 
@@ -38,14 +39,23 @@ public class VenderItensView extends JFrame {
         add(labelSaldo, BorderLayout.NORTH);
         add(criarTabela(), BorderLayout.CENTER);
         add(criarPainelInferior(), BorderLayout.SOUTH);
+
+        AtualizacaoAutomatica.ligar(this, this::atualizarTabela);
     }
 
     private JScrollPane criarTabela() {
         String[] colunas = {"ID", "Nome", "Categoria", "Preço", "Quantidade"};
-        modeloTabela = new DefaultTableModel(colunas, 0);
+        modeloTabela = new DefaultTableModel(colunas, 0) {
+            @Override
+            public boolean isCellEditable(int linha, int coluna) {
+                return false;
+            }
+        };
         atualizarTabela();
 
         tabelaItens = new JTable(modeloTabela);
+        tabelaItens.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        TabelaUtil.estilizar(tabelaItens, new int[]{50, 230, 110, 110, 90}, new int[]{3}, new int[]{0, 4});
         return new JScrollPane(tabelaItens);
     }
 
@@ -77,11 +87,8 @@ public class VenderItensView extends JFrame {
             }
             int itemId = (int) tabelaItens.getValueAt(linha, 0);
             int quantidade = (int) spinnerQuantidade.getValue();
+            // A tabela e o saldo se atualizam sozinhos: o controller avisa as telas abertas (NotificadorDados).
             ResultadoOperacao resultado = controller.venderItem(itemId, quantidade);
-            if (resultado.isSucesso()) {
-                atualizarTabela();
-                labelSaldo.atualizar();
-            }
             int tipoMensagem = resultado.isSucesso() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE;
             JOptionPane.showMessageDialog(this, resultado.getMensagem(), getTitle(), tipoMensagem);
         });

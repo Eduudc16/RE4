@@ -1,6 +1,12 @@
 package mercador.model;
 
 public class Categoria {
+
+    // Categorias que as regras do sistema reconhecem (criadas em ConexaoSQLite.inserirDadosIniciais).
+    public static final String ARMA = "Arma";
+    public static final String MUNICAO = "Munição";
+    public static final String CURA = "Cura";
+
     private int id;
     private String nome;
 

@@ -46,18 +46,26 @@ public class ArmaDAO {
     }
 
     public Arma buscarPorId(int id) {
+        return buscarPor("a.id", id);
+    }
+
+    /** A linha de `arma` do item, ou null se o item não for uma arma cadastrada. */
+    public Arma buscarPorItemId(int itemId) {
+        return buscarPor("a.item_id", itemId);
+    }
+
+    private Arma buscarPor(String coluna, int valor) {
         String sql = """
             SELECT a.id, a.item_id, i.nome AS item_nome, a.dano, a.capacidade,
                    a.velocidade_recarga, a.poder_tiro
             FROM arma a
             JOIN item i ON i.id = a.item_id
-            WHERE a.id = ?
-        """;
+            WHERE\s""" + coluna + " = ?";
 
         try (Connection conn = ConexaoSQLite.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
 
-            ps.setInt(1, id);
+            ps.setInt(1, valor);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Arma arma = new Arma(
@@ -80,11 +88,22 @@ public class ArmaDAO {
     }
 
     public int inserir(Arma arma) {
+        try (Connection conn = ConexaoSQLite.getConnection()) {
+            return inserir(conn, arma);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /**
+     * Mesma operação, mas usando uma conexão já aberta pelo chamador — usada
+     * no cadastro de uma arma, que grava `item` e `arma` na mesma transação.
+     */
+    public int inserir(Connection conn, Arma arma) throws SQLException {
         String sql = "INSERT INTO arma (item_id, dano, capacidade, velocidade_recarga, poder_tiro) VALUES (?, ?, ?, ?, ?)";
 
-        try (Connection conn = ConexaoSQLite.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setInt(1, arma.getItemId());
             ps.setInt(2, arma.getDano());
             ps.setInt(3, arma.getCapacidade());
@@ -97,8 +116,6 @@ public class ArmaDAO {
                     return rs.getInt(1);
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
 
         return -1;

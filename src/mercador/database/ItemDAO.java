@@ -76,11 +76,22 @@ public class ItemDAO {
     }
 
     public int inserir(Item item) {
+        try (Connection conn = ConexaoSQLite.getConnection()) {
+            return inserir(conn, item);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return -1;
+        }
+    }
+
+    /**
+     * Mesma operação, mas usando uma conexão já aberta pelo chamador — usada
+     * no cadastro de uma arma, que grava `item` e `arma` na mesma transação.
+     */
+    public int inserir(Connection conn, Item item) throws SQLException {
         String sql = "INSERT INTO item (nome, descricao, preco, categoria_id) VALUES (?, ?, ?, ?)";
 
-        try (Connection conn = ConexaoSQLite.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-
+        try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             ps.setString(1, item.getNome());
             ps.setString(2, item.getDescricao());
             ps.setDouble(3, item.getPreco());
@@ -92,74 +103,78 @@ public class ItemDAO {
                     return rs.getInt(1);
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
         }
 
         return -1;
     }
 
     public boolean atualizar(Item item) {
+        try (Connection conn = ConexaoSQLite.getConnection()) {
+            return atualizar(conn, item);
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    /** Mesma operação, mas usando uma conexão já aberta pelo chamador (ver inserir(Connection, Item)). */
+    public boolean atualizar(Connection conn, Item item) throws SQLException {
         String sql = "UPDATE item SET nome = ?, descricao = ?, preco = ?, categoria_id = ? WHERE id = ?";
 
-        try (Connection conn = ConexaoSQLite.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setString(1, item.getNome());
             ps.setString(2, item.getDescricao());
             ps.setDouble(3, item.getPreco());
             ps.setInt(4, item.getCategoriaId());
             ps.setInt(5, item.getId());
             return ps.executeUpdate() > 0;
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return false;
         }
     }
 
     /**
-     * Remove um item. Recusa a remoção (retorna false) se houver arma,
-     * transacao ou linha de inventario_cliente dependente, em vez de
-     * aplicar CASCADE automaticamente.
+     * Remove um item. Recusa a remoção (retorna false) se houver transacao,
+     * linha de inventario_cliente ou upgrade da arma do item dependente, em
+     * vez de aplicar CASCADE automaticamente. Se o item for uma arma sem
+     * upgrades, a linha em `arma` é removida junto, na mesma transação.
      */
     public boolean deletar(int id) {
-        if (possuiDependencias(id)) {
-            return false;
-        }
+        try {
+            return ConexaoSQLite.executarEmTransacao(conn -> {
+                if (possuiDependencias(conn, id)) {
+                    return false;
+                }
 
-        String sql = "DELETE FROM item WHERE id = ?";
-        try (Connection conn = ConexaoSQLite.getConnection();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-
-            ps.setInt(1, id);
-            return ps.executeUpdate() > 0;
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM arma WHERE item_id = ?")) {
+                    ps.setInt(1, id);
+                    ps.executeUpdate();
+                }
+                try (PreparedStatement ps = conn.prepareStatement("DELETE FROM item WHERE id = ?")) {
+                    ps.setInt(1, id);
+                    return ps.executeUpdate() > 0;
+                }
+            });
         } catch (SQLException e) {
             e.printStackTrace();
             return false;
         }
     }
 
-    private boolean possuiDependencias(int itemId) {
+    private boolean possuiDependencias(Connection conn, int itemId) throws SQLException {
         String[] consultas = {
-            "SELECT COUNT(*) FROM arma WHERE item_id = ?",
             "SELECT COUNT(*) FROM transacao WHERE item_id = ?",
-            "SELECT COUNT(*) FROM inventario_cliente WHERE item_id = ?"
+            "SELECT COUNT(*) FROM inventario_cliente WHERE item_id = ?",
+            "SELECT COUNT(*) FROM upgrade WHERE arma_id IN (SELECT id FROM arma WHERE item_id = ?)"
         };
 
-        try (Connection conn = ConexaoSQLite.getConnection()) {
-            for (String sql : consultas) {
-                try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                    ps.setInt(1, itemId);
-                    try (ResultSet rs = ps.executeQuery()) {
-                        if (rs.next() && rs.getInt(1) > 0) {
-                            return true;
-                        }
+        for (String sql : consultas) {
+            try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                ps.setInt(1, itemId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    if (rs.next() && rs.getInt(1) > 0) {
+                        return true;
                     }
                 }
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-            return true;
         }
 
         return false;

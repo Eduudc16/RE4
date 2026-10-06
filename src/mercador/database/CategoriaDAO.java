@@ -1,6 +1,7 @@
 package mercador.database;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -27,5 +28,24 @@ public class CategoriaDAO {
         }
 
         return categorias;
+    }
+
+    public Categoria buscarPorId(int id) {
+        String sql = "SELECT id, nome FROM categoria WHERE id = ?";
+
+        try (Connection conn = ConexaoSQLite.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new Categoria(rs.getInt("id"), rs.getString("nome"));
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }

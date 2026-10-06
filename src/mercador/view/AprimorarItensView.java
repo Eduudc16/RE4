@@ -42,6 +42,8 @@ public class AprimorarItensView extends JFrame {
         add(labelSaldo, BorderLayout.NORTH);
         add(criarTabelas(), BorderLayout.CENTER);
         add(criarPainelInferior(), BorderLayout.SOUTH);
+
+        AtualizacaoAutomatica.ligar(this, this::atualizarTabelaArmas);
     }
 
     private JPanel criarTabelas() {
@@ -69,6 +71,9 @@ public class AprimorarItensView extends JFrame {
         };
         tabelaUpgrades = new JTable(modeloUpgrades);
         tabelaUpgrades.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+
+        TabelaUtil.estilizar(tabelaArmas, new int[]{50, 200, 70, 90, 80, 110}, new int[]{}, new int[]{0, 2, 3, 4, 5});
+        TabelaUtil.estilizar(tabelaUpgrades, new int[]{50, 250, 80, 120}, new int[]{3}, new int[]{0, 2});
 
         atualizarTabelaArmas();
 
@@ -146,11 +151,8 @@ public class AprimorarItensView extends JFrame {
             }
 
             int upgradeId = (int) tabelaUpgrades.getValueAt(linhaUpgrade, 0);
+            // A tabela e o saldo se atualizam sozinhos: o controller avisa as telas abertas (NotificadorDados).
             ResultadoOperacao resultado = controller.aplicarUpgrade(armaId, upgradeId);
-            if (resultado.isSucesso()) {
-                atualizarTabelaArmas();
-                labelSaldo.atualizar();
-            }
             int tipoMensagem = resultado.isSucesso() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE;
             JOptionPane.showMessageDialog(this, resultado.getMensagem(), getTitle(), tipoMensagem);
         });

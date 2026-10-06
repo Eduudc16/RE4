@@ -34,5 +34,10 @@ public class Item {
     public void setCategoriaId(int categoriaId) { this.categoriaId = categoriaId; }
 
     public String getCategoriaNome() { return categoriaNome; }
+
+    /** Consumíveis (munição e cura) podem ser acumulados em várias unidades; os demais itens são únicos. */
+    public boolean isConsumivel() {
+        return Categoria.MUNICAO.equals(categoriaNome) || Categoria.CURA.equals(categoriaNome);
+    }
     public void setCategoriaNome(String categoriaNome) { this.categoriaNome = categoriaNome; }
 }

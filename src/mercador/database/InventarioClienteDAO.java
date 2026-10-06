@@ -47,6 +47,23 @@ public class InventarioClienteDAO {
         return itens;
     }
 
+    /** Se algum cliente tem pelo menos uma unidade do item. Na dúvida (erro de banco), considera que tem. */
+    public boolean algumClientePossui(int itemId) {
+        String sql = "SELECT COUNT(*) FROM inventario_cliente WHERE item_id = ? AND quantidade > 0";
+
+        try (Connection conn = ConexaoSQLite.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, itemId);
+            try (ResultSet rs = ps.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return true;
+        }
+    }
+
     public boolean adicionarQuantidade(int clienteId, int itemId, int quantidade) {
         try (Connection conn = ConexaoSQLite.getConnection()) {
             return adicionarQuantidade(conn, clienteId, itemId, quantidade);

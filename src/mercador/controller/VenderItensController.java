@@ -50,12 +50,14 @@ public class VenderItensController {
         Transacao transacao = new Transacao(0, clienteId, itemId, "venda", quantidade, valorVenda, LocalDate.now().toString());
 
         try {
-            return ConexaoSQLite.executarEmTransacao(conn -> {
+            ResultadoOperacao resultado = ConexaoSQLite.executarEmTransacao(conn -> {
                 clienteDAO.atualizarSaldo(conn, clienteId, cliente.getDinheiro() + valorVenda);
                 transacaoDAO.inserir(conn, transacao);
                 inventarioDAO.subtrairQuantidade(conn, clienteId, itemId, quantidade);
                 return ResultadoOperacao.sucesso("Venda realizada com sucesso.");
             });
+            NotificadorDados.notificar();
+            return resultado;
         } catch (SQLException e) {
             e.printStackTrace();
             return ResultadoOperacao.erro("Erro ao processar a venda. Nenhuma alteração foi salva.");
