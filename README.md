@@ -2,6 +2,16 @@
 
 Sistema desktop em Java Swing inspirado no Mercador de Resident Evil 4. Permite comprar, vender e aprimorar itens, além de cadastrar novos itens no catálogo.
 
+## Diagramas
+
+Ficam na pasta [`diagramas/`](diagramas/) — imagens em PNG e SVG (prontas para o relatório) e o código-fonte `.mmd`. Detalhes em [diagramas/README.md](diagramas/README.md).
+
+### Diagrama de classes
+<img src="diagramas/diagrama-classes.png" alt="Diagrama de classes" width="560">
+
+### Diagrama ER (MER)
+<img src="diagramas/diagrama-er.png" alt="Diagrama ER (MER)" width="800">
+
 ## Tecnologias
 - Java 21 + Swing
 - SQLite (via `org.xerial:sqlite-jdbc`, jar em `lib/`)
@@ -11,7 +21,7 @@ Sistema desktop em Java Swing inspirado no Mercador de Resident Evil 4. Permite 
 ```
 src/mercador/
 ├── Main.java              # ponto de entrada
-├── model/                 # entidades (Cliente, Categoria, Item, Arma, Upgrade, Transacao)
+├── model/                 # entidades (Cliente, Categoria, Item, Arma, Upgrade, Transacao, ItemInventario) + regras da maleta (Maleta)
 ├── database/               # conexão SQLite + DAOs de leitura
 ├── view/                  # telas Swing
 └── controller/            # lógica das telas (CRUD a implementar)
@@ -24,8 +34,8 @@ src/mercador/
 
 O banco `database/mercador.db` é criado automaticamente na primeira execução, já com as tabelas e alguns itens pré-cadastrados (armas, munições, curas, tesouros e coletes do jogo).
 
-## Banco de dados (6 tabelas)
-`categoria`, `cliente`, `item`, `arma`, `upgrade`, `transacao` — definidas em `mercador.database.ConexaoSQLite`.
+## Banco de dados (7 tabelas)
+`categoria`, `cliente`, `item`, `arma`, `upgrade`, `transacao`, `inventario_cliente` — definidas em `mercador.database.ConexaoSQLite` (veja o [diagrama ER](#diagrama-er-mer) acima).
 
 ## O que já está pronto
 - Estrutura MVC completa
